@@ -1,0 +1,39 @@
+project:
+  name: "Retail Demand Forecasting & Inventory Optimization"
+  version: "1.0.0"
+  environment: "development"
+
+bigquery:
+  project_id: "your-gcp-project-id"        # Replace with your GCP Project ID
+  dataset_id: "m5_retail_demand"            # Target dataset in BigQuery
+  location: "US"
+  credentials_file: "config/gcp_service_account.json"  # Path to service account key (if available)
+
+duckdb:
+  db_path: "data/m5_local.duckdb"
+
+data_paths:
+  raw_dir: "m5-forecasting-accuracy"
+  calendar: "m5-forecasting-accuracy/calendar.csv"
+  sales_train_validation: "m5-forecasting-accuracy/sales_train_validation.csv"
+  sales_train_evaluation: "m5-forecasting-accuracy/sales_train_evaluation.csv"
+  sell_prices: "m5-forecasting-accuracy/sell_prices.csv"
+  sample_submission: "m5-forecasting-accuracy/sample_submission.csv"
+
+pipeline:
+  chunk_size: 50000
+  unpivot_batch_size: 500
+  default_engine: "duckdb"   # Options: "bigquery", "duckdb"
+
+tables:
+  calendar: "calendar"
+  sales_train_validation: "sales_train_validation"
+  sales_train_evaluation: "sales_train_evaluation"
+  sell_prices: "sell_prices"
+  sample_submission: "sample_submission"
+  sales_fact: "sales_fact"
+
+validation:
+  max_allowed_duplicate_rate: 0.0
+  max_allowed_null_rate_critical: 0.0  # primary keys, ids, dates
+  max_allowed_null_rate_optional: 0.8  # e.g., event_name_2

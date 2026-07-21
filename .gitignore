@@ -1,0 +1,24 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Large Datasets & Local Database files
+m5-forecasting-accuracy/
+m5-forecasting-accuracy.zip
+data/
+*.duckdb
+*.db
+
+# Logs & Sensitive Credentials
+logs/
+*.log
+config/gcp_service_account.json
+.env
+
+# IDE & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
