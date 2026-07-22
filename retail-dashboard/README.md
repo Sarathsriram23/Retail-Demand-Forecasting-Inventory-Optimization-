@@ -112,6 +112,13 @@ python etl/validate_pipeline.py --engine duckdb
 pytest tests/
 ```
 
+### Launch the Streamlit Dashboard
+```bash
+streamlit run app.py
+```
+
+The dashboard includes store/category filters, historical sales charts, forecast comparison, and a simple what-if inventory simulation.
+
 ---
 
 ## Data Schema & Optimization Rationale
