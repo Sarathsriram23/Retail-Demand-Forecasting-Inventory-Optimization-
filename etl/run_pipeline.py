@@ -90,9 +90,15 @@ def run_etl(config_path: str = "config/config.yaml", engine_override: str = None
 
     # 9. Pipeline Execution: Sales Fact Transformation (Wide to Long Analytics Table)
     logger.info("--- Step 4.6: Building Normalized Sales Fact Analytical Table ---")
-    sales_fact_long = transformer.transform_sales_wide_to_long(sales_val_clean, cal_clean)
-    validator.validate_missing_values(sales_fact_long, critical_cols=["id", "item_id", "store_id", "date", "sales_qty"], dataset_name="sales_fact")
-    loader.load_sales_fact(sales_fact_long, if_exists="replace")
+    chunk_generator = transformer.transform_sales_wide_to_long_chunks(sales_val_clean, cal_clean, chunk_size=5000)
+    
+    first_chunk = True
+    for chunk in chunk_generator:
+        validator.validate_missing_values(chunk, critical_cols=["id", "item_id", "store_id", "date", "sales_qty"], dataset_name="sales_fact_chunk")
+        if_exists = "replace" if first_chunk else "append"
+        loader.load_sales_fact(chunk, if_exists=if_exists)
+        first_chunk = False
+
 
     # 10. Automated Data Quality Audit Report
     logger.info("--- Step 5: Data Quality Verification Audit ---")

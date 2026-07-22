@@ -57,8 +57,11 @@ def test_transform_sales_wide_to_long(sample_config):
     sales_df = pd.DataFrame(sales_data)
     cal_df = pd.DataFrame(cal_data)
     
-    long_df = transformer.transform_sales_wide_to_long(sales_df, cal_df)
+    chunks = list(transformer.transform_sales_wide_to_long_chunks(sales_df, cal_df, chunk_size=1))
+    assert len(chunks) == 1
+    long_df = chunks[0]
     assert len(long_df) == 2
     assert "sales_qty" in long_df.columns
     assert "date" in long_df.columns
     assert list(long_df["sales_qty"]) == [3, 5]
+

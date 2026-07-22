@@ -57,33 +57,33 @@ class M5DataTransformer:
             logger.info("[sell_prices] Zero missing values detected.")
         return df
 
-    def transform_sales_wide_to_long(self, sales_df: pd.DataFrame, calendar_df: pd.DataFrame, batch_size: int = 500) -> pd.DataFrame:
+    def transform_sales_wide_to_long_chunks(self, sales_df: pd.DataFrame, calendar_df: pd.DataFrame, chunk_size: int = 5000):
         """
-        Unpivots (melts) wide format sales_train_validation table (30,490 rows x 1,913 days)
-        into a normalized analytics fact table (id, item_id, dept_id, cat_id, store_id, state_id, d, sales_qty, date).
+        Unpivots (melts) wide format sales table chunk-by-chunk to prevent high RAM utilization.
+        Yields chunked long-format dataframes.
         """
-        logger.info(f"Unpivoting sales dataframe from wide format ({sales_df.shape}) to long format...")
+        logger.info(f"Unpivoting sales dataframe chunk-by-chunk (chunk_size={chunk_size})...")
         
         id_vars = ["id", "item_id", "dept_id", "cat_id", "store_id", "state_id"]
         val_vars = [col for col in sales_df.columns if col.startswith("d_")]
-
-        # Perform melt
-        long_df = sales_df.melt(
-            id_vars=id_vars,
-            value_vars=val_vars,
-            var_name="d",
-            value_name="sales_qty"
-        )
-
-        logger.info(f"Melt completed. Unpivoted rows: {len(long_df):,}")
-
-        # Join date from calendar table
         date_map = calendar_df.set_index("d")["date"].to_dict()
-        long_df["date"] = long_df["d"].map(date_map)
-        long_df["sales_qty"] = long_df["sales_qty"].astype(np.int32)
-        
-        # Ensure date format
-        long_df["date"] = pd.to_datetime(long_df["date"]).dt.date
 
-        logger.info("Joined calendar date mapping to long sales fact dataframe.")
-        return long_df
+        num_rows = len(sales_df)
+        for i in range(0, num_rows, chunk_size):
+            chunk = sales_df.iloc[i : i + chunk_size].copy()
+            logger.info(f"Processing unpivot chunk {i // chunk_size + 1} (rows {i} to {min(i + chunk_size, num_rows)})...")
+            
+            melted_chunk = chunk.melt(
+                id_vars=id_vars,
+                value_vars=val_vars,
+                var_name="d",
+                value_name="sales_qty"
+            )
+            
+            # Map calendar date
+            melted_chunk["date"] = melted_chunk["d"].map(date_map)
+            melted_chunk["sales_qty"] = melted_chunk["sales_qty"].astype(np.int32)
+            melted_chunk["date"] = pd.to_datetime(melted_chunk["date"]).dt.date
+            
+            yield melted_chunk
+
