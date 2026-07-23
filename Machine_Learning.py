@@ -1,5 +1,6 @@
 # generate a function to study sales trend over time using machine learning techniques
 import pandas as pd
+import os
 
 def load_data(\Users\amend\Downloads\Retail-Demand-Forecasting-Inventory-Optimization-\src\Data\calendar.csv):
     """
