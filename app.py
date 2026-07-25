@@ -7,14 +7,14 @@ st.set_page_config(page_title="Retail Dashboard", layout="wide")
 st.title("Retail Demand Forecasting Dashboard")
 st.caption("Analyze sales trends and inventory performance")
 
-# Dummy data
-dates = pd.date_range(start="2024-01-01", periods=50)
-sales = np.random.randint(10, 100, size=50)
+# Load real dataset (TEMPORARY)
+df = pd.read_csv("data/sales_train_validation.csv")
 
-df = pd.DataFrame({
-    "date": dates,
-    "sales": sales
-})
+# TEMP: create simple usable columns
+df = df.head(100)  # limit for performance
+
+df["date"] = range(len(df))
+df["sales"] = df.iloc[:, 6:].sum(axis=1)  # pick one sales column
 
 # Sidebar
 st.sidebar.header("Filters")
@@ -32,7 +32,7 @@ col2.metric("Max Sales", int(df["sales"].max()))
 col3.metric("Min Sales", int(df["sales"].min()))
 # Chart
 st.subheader("Sales Trend")
-st.line_chart(df.set_index("date"))
+st.line_chart(df.set_index("date")["sales"])
 
 # Table
 st.subheader("Data")
@@ -44,4 +44,4 @@ st.subheader("Sales Distribution")
 st.bar_chart(filtered_df["sales"])
 
 st.subheader("Last 10 Days Sales")
-st.line_chart(filtered_df.tail(10).set_index("date"))
+st.line_chart(filtered_df.tail(10).set_index("date")["sales"])
