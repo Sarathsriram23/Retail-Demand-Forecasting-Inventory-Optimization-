@@ -13,6 +13,7 @@ from src.extractors import M5DataExtractor
 from src.transformers import M5DataTransformer
 from src.loaders import M5DataLoader
 from src.validators import M5DataValidator
+from src.schemas import CalendarRow, SellPriceRow, SalesValidationRow, SalesFactRow
 
 logger = setup_logger(__name__)
 
@@ -55,6 +56,7 @@ def run_etl(config_path: str = "config/config.yaml", engine_override: str = None
     cal_clean = transformer.deduplicate(cal_raw, key_columns=["d"], dataset_name="calendar")
     cal_clean = transformer.handle_calendar_missing_values(cal_clean)
     validator.validate_missing_values(cal_clean, critical_cols=["date", "wm_yr_wk", "d"], dataset_name="calendar")
+    validator.validate_schema(cal_clean, CalendarRow, "calendar")
     loader.load_calendar(cal_clean, if_exists="replace")
 
     # 5. Pipeline Execution: Sell Prices
@@ -64,6 +66,7 @@ def run_etl(config_path: str = "config/config.yaml", engine_override: str = None
     prices_clean = transformer.deduplicate(prices_raw, key_columns=["store_id", "item_id", "wm_yr_wk"], dataset_name="sell_prices")
     prices_clean = transformer.handle_sell_prices_missing_values(prices_clean)
     validator.validate_sell_prices_ranges(prices_clean)
+    validator.validate_schema(prices_clean, SellPriceRow, "sell_prices")
     loader.load_sell_prices(prices_clean, if_exists="replace")
 
     # 6. Pipeline Execution: Sales Train Validation (Raw Staging)
@@ -71,6 +74,7 @@ def run_etl(config_path: str = "config/config.yaml", engine_override: str = None
     sales_val_raw = extractor.extract_sales_validation()
     validator.validate_uniqueness(sales_val_raw, key_cols=["id"], dataset_name="sales_train_validation")
     sales_val_clean = transformer.deduplicate(sales_val_raw, key_columns=["id"], dataset_name="sales_train_validation")
+    validator.validate_schema(sales_val_clean, SalesValidationRow, "sales_train_validation")
     loader.load_sales_train_validation(sales_val_clean, if_exists="replace")
 
     # 7. Pipeline Execution: Sales Train Evaluation (Raw Staging)
@@ -79,6 +83,7 @@ def run_etl(config_path: str = "config/config.yaml", engine_override: str = None
     if not sales_eval_raw.empty:
         validator.validate_uniqueness(sales_eval_raw, key_cols=["id"], dataset_name="sales_train_evaluation")
         sales_eval_clean = transformer.deduplicate(sales_eval_raw, key_columns=["id"], dataset_name="sales_train_evaluation")
+        validator.validate_schema(sales_eval_clean, SalesValidationRow, "sales_train_evaluation")
         loader.load_sales_train_evaluation(sales_eval_clean, if_exists="replace")
 
     # 8. Pipeline Execution: Sample Submission
@@ -95,6 +100,7 @@ def run_etl(config_path: str = "config/config.yaml", engine_override: str = None
     first_chunk = True
     for chunk in chunk_generator:
         validator.validate_missing_values(chunk, critical_cols=["id", "item_id", "store_id", "date", "sales_qty"], dataset_name="sales_fact_chunk")
+        validator.validate_schema(chunk, SalesFactRow, "sales_fact_chunk")
         if_exists = "replace" if first_chunk else "append"
         loader.load_sales_fact(chunk, if_exists=if_exists)
         first_chunk = False

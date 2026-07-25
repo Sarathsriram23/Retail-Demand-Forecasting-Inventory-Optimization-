@@ -118,12 +118,21 @@ class DatabaseAdapter:
                 self.sqlite_conn.commit()
 
     def load_dataframe(self, df: pd.DataFrame, table_name: str, if_exists: str = "append") -> int:
-        """Loads a pandas DataFrame into target table."""
+        """Loads a pandas DataFrame into target table using optimized Parquet file-based loading."""
         if df.empty:
             logger.warning(f"DataFrame for table '{table_name}' is empty. Skipping load.")
             return 0
 
         rows = len(df)
+        
+        # Ensure temp staging directory exists
+        temp_dir = Path("data/tmp_staging")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        parquet_path = temp_dir / f"{table_name}.parquet"
+        
+        # Save dataframe to temporary Parquet file
+        df.to_parquet(parquet_path, compression="gzip", index=False)
+
         if self.engine_type == "bigquery":
             from google.cloud import bigquery
             table_ref = f"{self.bq_client.project}.{self.dataset_id}.{table_name}"
@@ -132,27 +141,39 @@ class DatabaseAdapter:
                 if if_exists == "replace"
                 else bigquery.WriteDisposition.WRITE_APPEND
             )
-            job_config = bigquery.LoadJobConfig(write_disposition=write_disposition)
-            job = self.bq_client.load_table_from_dataframe(df, table_ref, job_config=job_config)
-            job.result()  # Wait for completion
-            logger.info(f"Successfully loaded {rows} rows into BigQuery table '{table_ref}'")
+            job_config = bigquery.LoadJobConfig(
+                source_format=bigquery.SourceFormat.PARQUET,
+                write_disposition=write_disposition
+            )
+            with open(parquet_path, "rb") as source_file:
+                job = self.bq_client.load_table_from_file(source_file, table_ref, job_config=job_config)
+                job.result()  # Wait for completion
+            logger.info(f"Successfully loaded {rows} rows from Parquet into BigQuery table '{table_ref}'")
         elif HAS_DUCKDB:
+            parquet_path_str = str(parquet_path).replace("\\", "/")
             if if_exists == "replace":
                 self.duck_conn.execute(f"DROP TABLE IF EXISTS {table_name}")
-                self.duck_conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM df")
+                self.duck_conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{parquet_path_str}')")
             else:
                 tbl_exists = self.duck_conn.execute(
                     f"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='{table_name}'"
                 ).fetchone()[0] > 0
 
                 if not tbl_exists:
-                    self.duck_conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM df")
+                    self.duck_conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_parquet('{parquet_path_str}')")
                 else:
-                    self.duck_conn.execute(f"INSERT INTO {table_name} SELECT * FROM df")
-            logger.info(f"Successfully loaded {rows} rows into DuckDB table '{table_name}'")
+                    self.duck_conn.execute(f"INSERT INTO {table_name} SELECT * FROM read_parquet('{parquet_path_str}')")
+            logger.info(f"Successfully loaded {rows} rows from Parquet into DuckDB table '{table_name}'")
         else:
             df.to_sql(table_name, self.sqlite_conn, if_exists=if_exists, index=False)
             logger.info(f"Successfully loaded {rows} rows into SQLite table '{table_name}'")
+
+        # Clean up temporary Parquet file
+        try:
+            if parquet_path.exists():
+                parquet_path.unlink()
+        except Exception as e:
+            logger.warning(f"Could not remove temporary staging Parquet file {parquet_path}: {e}")
 
         return rows
 
