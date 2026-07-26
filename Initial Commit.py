@@ -36,3 +36,10 @@ print("Calendar:",calendar.shape)
 print("Prices:",prices.shape)
 print("Sales:",sales.shape)
 
+#Display dataset information
+print("\nCalendar Dataset Info:")
+print(calendar.info())
+print("\nPrices Dataset Info:")
+print(prices.info())
+print("\nSales Dataset Info:")
+print(sales.info())
