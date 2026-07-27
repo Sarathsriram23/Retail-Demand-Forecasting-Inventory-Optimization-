@@ -76,3 +76,38 @@ class M5DataValidator:
             logger.info(f"  - Table '{tbl}': {cnt:,} rows")
         logger.info("==========================================")
         return report
+
+    def validate_schema(self, df: pd.DataFrame, model_class, dataset_name: str, sample_size: int = 100) -> bool:
+        """Validates that a DataFrame conforms to the specified Pydantic model schema using sampling."""
+        # 1. Column presence check
+        expected_fields = list(model_class.model_fields.keys())
+        missing_cols = [col for col in expected_fields if col not in df.columns]
+        if missing_cols:
+            logger.error(f"[VALIDATION FAILED] [{dataset_name}] Missing schema columns: {missing_cols}")
+            return False
+
+        # 2. Sample records validation via Pydantic
+        sample_df = df.sample(n=min(len(df), sample_size), random_state=42).copy()
+        
+        # Handle conversion from numpy/pandas types to Python primitives before validating
+        records = sample_df[expected_fields].to_dict(orient="records")
+        
+        errors = []
+        for idx, rec in enumerate(records):
+            try:
+                # Handle standard Date conversions
+                if "date" in rec and isinstance(rec["date"], pd.Timestamp):
+                    rec["date"] = rec["date"].date()
+                model_class.model_validate(rec)
+            except Exception as e:
+                errors.append((idx, rec, str(e)))
+
+        if errors:
+            logger.error(f"[VALIDATION FAILED] [{dataset_name}] Schema validation errors in {len(errors)}/{sample_size} sampled rows.")
+            for err_idx, rec, err_msg in errors[:3]:  # Log first 3 errors
+                logger.error(f"  - Sample row {err_idx}: {rec}\n    Error: {err_msg}")
+            return False
+
+        logger.info(f"[VALIDATION PASSED] [{dataset_name}] Schema conforms to {model_class.__name__} (validated {sample_size} sample rows).")
+        return True
+

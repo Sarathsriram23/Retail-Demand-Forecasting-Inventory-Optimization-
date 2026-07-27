@@ -33,3 +33,23 @@ def test_validate_sell_prices_ranges(sample_validator):
 
     df_bad = pd.DataFrame({"sell_price": [1.5, -2.0, 0.0]})
     assert sample_validator.validate_sell_prices_ranges(df_bad) is False
+
+def test_validate_schema(sample_validator):
+    from src.schemas import SellPriceRow
+    df = pd.DataFrame({
+        "store_id": ["CA_1", "CA_2"],
+        "item_id": ["HOBBIES_1", "HOBBIES_2"],
+        "wm_yr_wk": [11101, 11102],
+        "sell_price": [9.58, 8.26]
+    })
+    assert sample_validator.validate_schema(df, SellPriceRow, "sell_prices") is True
+
+    # Bad data: negative sell price
+    df_bad = pd.DataFrame({
+        "store_id": ["CA_1"],
+        "item_id": ["HOBBIES_1"],
+        "wm_yr_wk": [11101],
+        "sell_price": [-1.0]
+    })
+    assert sample_validator.validate_schema(df_bad, SellPriceRow, "sell_prices") is False
+

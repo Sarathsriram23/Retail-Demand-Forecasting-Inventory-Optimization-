@@ -7,14 +7,30 @@ st.set_page_config(page_title="Retail Dashboard", layout="wide")
 st.title("Retail Demand Forecasting Dashboard")
 st.caption("Analyze sales trends and inventory performance")
 
-# Dummy data
-dates = pd.date_range(start="2024-01-01", periods=50)
-sales = np.random.randint(10, 100, size=50)
+# Load real dataset (TEMPORARY)
+df = pd.read_csv("data/sales_train_validation.csv")
 
-df = pd.DataFrame({
-    "date": dates,
-    "sales": sales
-})
+
+df = df.head(100)  # limit for performance
+
+df["date"] = range(len(df))
+df["sales"] = df.iloc[:, 6:].sum(axis=1)
+
+
+# Select only day columns
+day_cols = [col for col in df.columns if col.startswith("d_")]
+
+df_long = df.melt(
+    id_vars=["id"],
+    value_vars=day_cols,   # IMPORTANT FIX
+    var_name="day",
+    value_name="value"
+)
+
+
+df_long["day"] = df_long["day"].str.replace("d_", "").astype(int)
+
+df_long = df_long.head(1000) # pick one sales column
 
 # Sidebar
 st.sidebar.header("Filters")
@@ -32,9 +48,10 @@ col2.metric("Max Sales", int(df["sales"].max()))
 col3.metric("Min Sales", int(df["sales"].min()))
 # Chart
 st.subheader("Sales Trend")
-st.line_chart(df.set_index("date"))
+st.line_chart(df_long.groupby("day")["value"].sum())
 
 # Table
+st.write("Blue = Actual Sales | Orange = Forecast Trend")
 st.subheader("Data")
 st.dataframe(df)
 
@@ -44,4 +61,30 @@ st.subheader("Sales Distribution")
 st.bar_chart(filtered_df["sales"])
 
 st.subheader("Last 10 Days Sales")
-st.line_chart(filtered_df.tail(10).set_index("date"))
+last_10 = df_long.groupby("day")["value"].sum().tail(10)
+st.line_chart(last_10)
+
+st.subheader("Sales Forecast (Moving Average)")
+
+# Prepare time series
+ts = df_long.groupby("day")["value"].sum().reset_index()
+
+# Rolling average (7 days)
+ts["rolling_mean"] = ts["value"].rolling(window=7).mean()
+
+# Plot actual vs forecast
+st.line_chart(ts.set_index("day")[["value", "rolling_mean"]])
+
+st.subheader("Next 7 Days Forecast")
+
+last_value = ts["rolling_mean"].iloc[-1]
+
+future_days = list(range(ts["day"].max() + 1, ts["day"].max() + 8))
+future_values = [last_value] * 7
+
+forecast_df = pd.DataFrame({
+    "day": future_days,
+    "forecast": future_values
+})
+
+st.line_chart(forecast_df.set_index("day"))
