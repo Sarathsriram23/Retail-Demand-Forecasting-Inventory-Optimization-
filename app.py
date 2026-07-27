@@ -17,12 +17,12 @@ df["date"] = range(len(df))
 df["sales"] = df.iloc[:, 6:].sum(axis=1)
 
 
-# ✅ Select only day columns
+# Select only day columns
 day_cols = [col for col in df.columns if col.startswith("d_")]
 
 df_long = df.melt(
     id_vars=["id"],
-    value_vars=day_cols,   # 🔥 IMPORTANT FIX
+    value_vars=day_cols,   # IMPORTANT FIX
     var_name="day",
     value_name="value"
 )
@@ -51,6 +51,7 @@ st.subheader("Sales Trend")
 st.line_chart(df_long.groupby("day")["value"].sum())
 
 # Table
+st.write("Blue = Actual Sales | Orange = Forecast Trend")
 st.subheader("Data")
 st.dataframe(df)
 
@@ -62,3 +63,28 @@ st.bar_chart(filtered_df["sales"])
 st.subheader("Last 10 Days Sales")
 last_10 = df_long.groupby("day")["value"].sum().tail(10)
 st.line_chart(last_10)
+
+st.subheader("Sales Forecast (Moving Average)")
+
+# Prepare time series
+ts = df_long.groupby("day")["value"].sum().reset_index()
+
+# Rolling average (7 days)
+ts["rolling_mean"] = ts["value"].rolling(window=7).mean()
+
+# Plot actual vs forecast
+st.line_chart(ts.set_index("day")[["value", "rolling_mean"]])
+
+st.subheader("Next 7 Days Forecast")
+
+last_value = ts["rolling_mean"].iloc[-1]
+
+future_days = list(range(ts["day"].max() + 1, ts["day"].max() + 8))
+future_values = [last_value] * 7
+
+forecast_df = pd.DataFrame({
+    "day": future_days,
+    "forecast": future_values
+})
+
+st.line_chart(forecast_df.set_index("day"))
