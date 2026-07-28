@@ -49,7 +49,3 @@ print("\nDuplicate Rows in Calendar Dataset:", calendar.duplicated().sum())
 print("Duplicate Rows in Prices Dataset:", prices.duplicated().sum())   
 print("Duplicate Rows in Sales Dataset:", sales.duplicated().sum())   
 
-#Check for duplicate rows in the datasets
-print("\nDuplicate Rows in Calendar Dataset:", calendar.duplicated().sum())
-print("Duplicate Rows in Prices Dataset:", prices.duplicated().sum())
-print("Duplicate Rows in Sales Dataset:", sales.duplicated().sum())
