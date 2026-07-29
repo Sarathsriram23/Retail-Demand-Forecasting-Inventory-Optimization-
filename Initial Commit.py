@@ -49,3 +49,20 @@ print("\nDuplicate Rows in Calendar Dataset:", calendar.duplicated().sum())
 print("Duplicate Rows in Prices Dataset:", prices.duplicated().sum())   
 print("Duplicate Rows in Sales Dataset:", sales.duplicated().sum())   
 
+#Display column names of the datasets
+print("\nCalendar Dataset Columns:", calendar.columns)
+print("Prices Dataset Columns:", prices.columns)
+print("Sales Dataset Columns:", sales.columns)
+
+#Display data types of the datasets
+print("\nCalendar Dataset Data Types:\n", calendar.dtypes)
+print("\nPrices Dataset Data Types:\n", prices.dtypes)
+print("\nSales Dataset Data Types:\n", sales.dtypes)    
+
+#Summary statistics
+print(prices.describe())
+print(sales.describe())
+
+#Convert date column
+calendar['date'] = pd.to_datetime(calendar['date'])
+print(calendar['date'].head())
